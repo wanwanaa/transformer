@@ -6,8 +6,13 @@ class Config():
         self.filename_trimmed_test = 'data/test.pt'
 
         # vocab
-        self.filename_word2idx = 'DATA/data/word2index.pkl'
-        self.filename_idx2word = 'DATA/data/index2word.pkl'
+        self.filename_word2idx = 'data/word2index.pkl'
+        self.filename_idx2word = 'data/index2word.pkl'
+
+        # filename result
+        self.filename_summary = 'results/data/'
+        self.filename_model = 'result/model/'
+        self.filename_rouge = 'result/data/ROUGE.txt'
 
         # Hyper Parameters
         self.LR = 0.0003
@@ -23,3 +28,6 @@ class Config():
         self.dropout = 0.1
         self.n_head = 8
         self.n_layer = 6
+
+        # self.optimizer = torch.optim.Adam()
+        self.warmup_steps = 4000

@@ -46,6 +46,11 @@ def positional_encoding(len, model_size, pad):
     return pe
 
 
+# implement label smoothing
+class LabelSmoothing(nn.Module):
+    def __init__(self):
+
+
 class Encoder(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -107,7 +112,7 @@ class Decoder(nn.Module):
 
 
 # A sequence to sequence model with attention mechanism.
-class transformer(nn.Module):
+class Transformer(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.model_size = config.model_size
@@ -116,16 +121,27 @@ class transformer(nn.Module):
         self.encoder = Encoder(config)
         self.decoder = Decoder(config)
 
-        self.linear_out = nn.Linear(self.model_size, self.vocab_size)
+        self.linear_out = nn.Sequential(
+            nn.Linear(self.model_size, self.vocab_size),
+            nn.Softmax(-1)
+        )
+
+        self.loss_func = nn.CrossEntropyLoss()
 
         # share the same weight matrix between the encoder and decoder embedding
         self.encoder.embedding.weight = self.decoder.embedding.weight
 
+    def compute_loss(self, out, y):
+        y = y.view(-1)
+        out = out.view(-1, self.vocab_size)
+        loss = self.loss_func(out, y)
+        return loss
+
     def forward(self, x, x_pos, y, y_pos):
         # y, y_pos = y[:, :-1], y_pos[:, :-1]
-
         enc_output = self.encoder(x, x_pos)
         dec_output = self.decoder(y, y_pos, enc_output)
         out = self.linear_out(dec_output)
 
-        return out
+        loss = self.compute_loss(out, y)
+        return out, loss

@@ -13,10 +13,12 @@ class EncoderLayer(nn.Module):
 
     def forward(self, x, pad_mask=None, attn_mask=None):
         attn, w = self.attention(x, x, x, mask=attn_mask)
-        attn = attn*pad_mask
+        # attn (batch, len, model_size)
+        # pad_mask (batch, len, 1)
+        attn = attn*pad_mask.type(torch.float)
 
         enc_output = self.feedward(attn)
-        enc_output = enc_output*pad_mask
+        enc_output = enc_output*pad_mask.type(torch.float)
 
         return enc_output, w
 
@@ -32,12 +34,12 @@ class DecoderLayer(nn.Module):
 
     def forward(self, dec_input, enc_output, pad_mask=None, attn_self_mask=None, attn_mask=None):
         dec_output, dec_self_w = self.self_attention(dec_input, dec_input, dec_input, mask=attn_self_mask)
-        dec_output = dec_output * pad_mask
+        dec_output = dec_output * pad_mask.type(torch.float)
 
         dec_output, dec_w = self.enc_attention(dec_output, enc_output, enc_output, mask=attn_mask)
-        dec_output = dec_output * pad_mask
+        dec_output = dec_output * pad_mask.type(torch.float)
 
         dec_output = self.feedward(dec_output)
-        dec_output = dec_output * pad_mask
+        dec_output = dec_output * pad_mask.type(torch.float)
 
         return dec_output, dec_self_w, dec_w

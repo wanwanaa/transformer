@@ -7,6 +7,7 @@ import numpy as np
 # Scaled Dot Product Attention
 class Attention(nn.Module):
     def __init__(self, config):
+        super().__init__()
         self.d_k = config.model_size
 
         self.dropout = nn.Dropout(config.dropout)
@@ -14,7 +15,7 @@ class Attention(nn.Module):
 
     def forward(self, q, k, v, mask=None):
         # q, k, v (batch, len, model_size)
-        attn = torch.bmm(q, k.transpose) # (batch, len, len)
+        attn = torch.bmm(q, k.transpose(1, 2)) # (batch, len, len)
         attn = attn / math.sqrt(self.d_k)
         if mask is not None:
             # Fills elements of self tensor with value where mask is one
@@ -30,7 +31,6 @@ class MultiHeadAttention(nn.Module):
         super().__init__()
         self.model_size = config.model_size
         self.h = config.n_head
-        self.len = config.len
         self.d_k = config.model_size // self.h
 
         self.attention = Attention(config)
@@ -38,23 +38,27 @@ class MultiHeadAttention(nn.Module):
         self.linear_q = nn.Linear(config.model_size, config.model_size)
         self.linear_k = nn.Linear(config.model_size, config.model_size)
         self.linear_v = nn.Linear(config.model_size, config.model_size)
+        self.linear_out = nn.Linear(self.model_size, self.model_size)
 
-        self.dropout = config.dropout
+        self.dropout = nn.Dropout(config.dropout)
         self.layer_norm = nn.LayerNorm(config.model_size)
 
     def forward(self, q, k, v, mask=None):
         # q, k , v(batch, len, model_size)
         residual = q
+        len_q = q.size(1)
+        len_k = k.size(1)
+        len_v = v.size(1)
 
         # (batch, len, h, d_k)
-        q = self.linear_q(q).view(-1, self.len, self.h, self.d_k)
-        k = self.linear_q(k).view(-1, self.len, self.h, self.d_k)
-        v = self.linear_q(v).view(-1, self.len, self.h, self.d_k)
+        q = self.linear_q(q).contiguous().view(-1, len_q, self.h, self.d_k)
+        k = self.linear_q(k).contiguous().view(-1, len_k, self.h, self.d_k)
+        v = self.linear_q(v).contiguous().view(-1, len_v, self.h, self.d_k)
 
         # (batch*h, len, d_k)
-        q = q.transpose(1, 2).view(-1, self.len, self.d_k)
-        k = k.transpose(1, 2).view(-1, self.len, self.d_k)
-        v = v.transpose(1, 2).view(-1, self.len, self.d_k)
+        q = q.transpose(1, 2).contiguous().view(-1, len_q, self.d_k)
+        k = k.transpose(1, 2).contiguous().view(-1, len_k, self.d_k)
+        v = v.transpose(1, 2).contiguous().view(-1, len_v, self.d_k)
 
         if mask is not None:
             mask = mask.repeat(self.h, 1, 1) # (h*batch, len, len)
@@ -62,11 +66,11 @@ class MultiHeadAttention(nn.Module):
         # (batch*h, len, d_k)
         attn, w = self.attention(q, k, v, mask)
         # -> (batch, h, len, d_k)
-        attn = attn.view(-1, self.h, self.len, self.model_size)
+        attn = attn.view(-1, self.h, len_q, self.d_k)
         # -> (batch, len, h, d_k) -> (batch, len, model_size)
-        attn = attn.transpose(1, 2).view(-1, self.len, self.model_size)
+        attn = attn.transpose(1, 2).contiguous().view(-1, len_q, self.model_size)
 
-        attn = self.dropout(attn)
+        attn = self.dropout(self.linear_out(attn))
         out = self.layer_norm(residual + attn)
 
         return out, w

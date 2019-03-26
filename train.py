@@ -5,8 +5,10 @@ from utils import *
 
 
 def train(args, config, model):
+    model.train()
     # optim
     optimizer = torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9)
+    optim = Optim(optimizer, config)
 
     # data
     train_loader = data_load(config.filename_trimmed_train, config.batch_size, True)
@@ -22,11 +24,32 @@ def train(args, config, model):
         all_loss = 0
         num = 0
         for step, batch in enumerate(train_loader):
-            num += 1
             x, y = batch
+            x_pos = torch.arange(config.t_len).repeat(x.size(0), 1)
+            y_pos = torch.arange(config.s_len).repeat(x.size(0), 1)
             if torch.cuda.is_available():
                 x = x.cuda()
                 y = y.cuda()
+                x_pos = x.pos.cuda()
+                y_pos = y_pos.cuda()
+
+            out, loss = model(x, x_pos, y, y_pos)
+
+            optim.zero_grad()
+            loss.backward()
+            optim.updata()
+
+            n_word = y.ne(config.pad).sum().item()
+            num += n_word
+
+            all_loss += loss.item()
+            if step % 200 == 0:
+                print('epoch:', e, '|step:', step, '|train_loss: %.4f' % loss.item())
+
+        # train loss
+        loss = all_loss / num
+        print('epoch:', e, '|train_loss: %.4f' % loss)
+        train_loss.append(loss)
 
 
 def main():
@@ -60,3 +83,7 @@ def main():
         model = model.cuda()
 
     train(args, config, model)
+
+
+if __name__ == '__main__':
+    main()

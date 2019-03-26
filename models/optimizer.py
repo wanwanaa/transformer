@@ -3,7 +3,7 @@ import numpy as np
 
 
 class Optim():
-    def __int__(self, optimizer, config):
+    def __init__(self, optimizer, config):
         self.optimizer = optimizer
         self.warmup_steps = config.warmup_steps
         self.model_size = config.model_size
@@ -12,7 +12,7 @@ class Optim():
 
     def zero_grad(self):
         self.optimizer.zero_grad()
-        
+
     def updata_lr(self):
         self.steps += 1
         lr_scale = np.min([

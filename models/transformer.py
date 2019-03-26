@@ -8,7 +8,7 @@ def get_pad_mask(seq, pad):
     # (batch, len)
     mask = seq.eq(pad)
     # (batch, len, 1)
-    mask = mask.unsquenze(-1)
+    mask = mask.unsqueeze(-1)
     return mask
 
 
@@ -17,7 +17,7 @@ def get_attn_pad_mask(seq, pad):
     len = seq.size(1)
     pad_mask = seq.eq(pad)
     # (batch, len, len)
-    pad_mask = pad_mask.unsquenze(1).expand(-1, len, -1)
+    pad_mask = pad_mask.unsqueeze(1).expand(-1, len, -1)
     return pad_mask
 
 
@@ -36,19 +36,63 @@ def get_dec_mask(seq):
 def positional_encoding(len, model_size, pad):
     # (len, model_size)
     pe = torch.zeros(len, model_size)
-    position = torch.arange(0, len).unsqueeze(1)
-    div_term = torch.exp(torch.arange(0, model_size, 2) *
+    position = torch.arange(0., len).unsqueeze(1)
+    div_term = torch.exp(torch.arange(0., model_size, 2) *
                          (-math.log(10000.0) / model_size))
     pe[:, 0::2] = torch.sin(position * div_term)
     pe[:, 1::2] = torch.cos(position * div_term)
 
-    pe[pad] = 0.
+    # pe[pad] = 0.
+
     return pe
 
 
-# implement label smoothing
+# implement label smoothing KL
 class LabelSmoothing(nn.Module):
-    def __init__(self):
+    def __init__(self, config):
+        super().__init__()
+        self.criterion = nn.KLDivLoss(size_average=False)
+        self.ls = config.ls
+        self.vocab_size = config.vocab_size
+        self.pad = config.pad
+
+    def forward(self, out, y):
+        # out (batch, len, vocab_size)
+        # y (batch, len)
+        true_dist = torch.zeros_like(out)
+        true_dist.fill_(self.ls / (self.vocab_size-1))
+        true_dist.scatter_(2, y.unsqueeze(2), (1-self.ls))
+        mask = torch.nonzero(y == self.pad)
+        true_dist.index_fill_(0, mask.squeeze(), 0.0)
+
+        loss = self.criterion(y, true_dist)
+        return loss
+
+
+# # implement label smoothing one-hot
+# class LabelSmoothing(nn.Module):
+#     def __init__(self, config):
+#         super().__init__()
+#         self.ls = config.ls
+#         self.vocab_size = config.vocab_size
+#         self.pad = config.pad
+#
+#         self.softmax= nn.LogSoftmax(-1)
+#
+#     def forward(self, out, y):
+#         # out (batch, len, vocab_size)
+#         # y (batch, len)
+#         out = out.view(-1, self.vocab_size)
+#         y = y.view(-1)
+#
+#         one_hot = torch.zeros_like(out).scatter(1, y.view(-1, 1), 1)
+#         one_hot = one_hot * (1 - self.ls) + (1 - one_hot) * self.ls / (self.vocab_size - 1)
+#         log_prb = self.softmax(out)
+#
+#         pad_mask = y.ne(self.pad)
+#         loss = -(one_hot * log_prb).sum(dim=1)
+#         loss = loss.masked_select(pad_mask).sum()
+#         return loss
 
 
 class Encoder(nn.Module):
@@ -64,7 +108,7 @@ class Encoder(nn.Module):
 
         # positional Encoding
         self.position_enc = nn.Embedding.from_pretrained(
-            positional_encoding(config.len+1, config.model_size, config.pad), freeze=True
+            positional_encoding(config.max_len, config.model_size, config.pad), freeze=True
         )
 
         self.encoder_stack = nn.ModuleList([
@@ -73,8 +117,8 @@ class Encoder(nn.Module):
 
     def forward(self, x, pos):
         # mask
-        attn_mask = get_pad_mask(x, self.pad)
-        pad_mask = get_attn_pad_mask(x, self.pad)
+        pad_mask = get_pad_mask(x, self.pad) # (batch, len, 1)
+        attn_mask = get_attn_pad_mask(x, self.pad) # (batch, len, len)
 
         enc_output = self.embedding(x) + self.position_enc(pos)
         for layer in self.encoder_stack:
@@ -91,18 +135,18 @@ class Decoder(nn.Module):
         self.embedding = nn.Embedding(config.vocab_size, config.model_size)
 
         self.position_dec = nn.Embedding.from_pretrained(
-            positional_encoding(config.len + 1, config.model_size, config.pad), freeze=True
+            positional_encoding(config.max_len, config.model_size, config.pad), freeze=True
         )
 
         self.decoder_stack = nn.ModuleList([
-            DecoderLayer(config) for _ in range(self.n_layer)
+            DecoderLayer(config) for _ in range(config.n_layer)
         ])
 
     def forward(self, y, pos, enc_output):
         pad_mask = get_pad_mask(y, self.pad)
         pad_attn_mask = get_pad_mask(y, self.pad)
         attn_mask = get_dec_mask(y)
-        attn_self_mask = pad_attn_mask + attn_mask
+        attn_self_mask = (pad_attn_mask + attn_mask).gt(0)
 
         dec_output = self.embedding(y) + self.position_dec(pos)
         for layer in self.decoder_stack:
@@ -131,11 +175,7 @@ class Transformer(nn.Module):
         # share the same weight matrix between the encoder and decoder embedding
         self.encoder.embedding.weight = self.decoder.embedding.weight
 
-    def compute_loss(self, out, y):
-        y = y.view(-1)
-        out = out.view(-1, self.vocab_size)
-        loss = self.loss_func(out, y)
-        return loss
+        self.smoothing = LabelSmoothing(config)
 
     def forward(self, x, x_pos, y, y_pos):
         # y, y_pos = y[:, :-1], y_pos[:, :-1]
@@ -143,5 +183,6 @@ class Transformer(nn.Module):
         dec_output = self.decoder(y, y_pos, enc_output)
         out = self.linear_out(dec_output)
 
-        loss = self.compute_loss(out, y)
+        loss = self.smoothing(out, y)
+
         return out, loss

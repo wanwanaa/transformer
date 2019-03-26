@@ -18,7 +18,13 @@ class Config():
         self.LR = 0.0003
         self.batch_size = 256
         self.iters = 10000
-        self.len = 150
+
+        self.t_len = 150
+        self.s_len = 50
+
+        # positional encoding
+        self.max_len = 300
+
         self.beam_size = 10
         self.pad = 0
 
@@ -31,3 +37,5 @@ class Config():
 
         # self.optimizer = torch.optim.Adam()
         self.warmup_steps = 4000
+
+        self.ls = 0.1

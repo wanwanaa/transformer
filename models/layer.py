@@ -35,21 +35,10 @@ class DecoderLayer(nn.Module):
         self.feedward = Posfeedward(config)
 
     def forward(self, dec_input, enc_output, pad_mask=None, attn_self_mask=None, attn_mask=None):
-        # print(dec_input)
-        # print('\n\n')
         dec_output, dec_self_w = self.self_attention(dec_input, dec_input, dec_input, mask=attn_self_mask)
-
-        # print(dec_output)
-        # print('\n\n')
-
         dec_output = dec_output * pad_mask.type(torch.float)
 
-        # print(dec_output)
-        # print('\n\n')
-
         dec_output, dec_w = self.enc_attention(dec_output, enc_output, enc_output, mask=attn_mask)
-        # print(dec_output)
-
         dec_output = dec_output * pad_mask.type(torch.float)
 
         dec_output = self.feedward(dec_output)

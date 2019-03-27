@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from models.layer import EncoderLayer, DecoderLayer
 import math
+import numpy as np
 
 
 def get_non_pad_mask(seq, pad):
@@ -66,14 +67,17 @@ def positional_encoding(len, model_size, pad):
 #     def forward(self, out, y):
 #         # out (batch, len, vocab_size)
 #         # y (batch, len)
+#         word = y.view(-1).ne(self.pad).sum().item()
+#
 #         true_dist = torch.zeros_like(out)
 #         true_dist.fill_(self.ls / (self.vocab_size-1))
 #         true_dist.scatter_(2, y.unsqueeze(2), (1-self.ls))
-#         # mask = torch.nonzero(y == self.pad)
-#         # true_dist.index_fill_(1, mask, 0.0)
+#
+#         mask = torch.nonzero(y == self.pad)
+#         true_dist.index_fill_(1, mask, 0.0)
 #
 #         loss = self.criterion(out, true_dist)
-#         return loss
+#         return loss/word
 
 
 # implement label smoothing one-hot
@@ -84,8 +88,6 @@ class LabelSmoothing(nn.Module):
         self.vocab_size = config.vocab_size
         self.pad = config.pad
 
-        self.softmax= nn.LogSoftmax(-1)
-
     def forward(self, out, y):
         # out (batch, len, vocab_size)
         # y (batch, len)
@@ -95,13 +97,14 @@ class LabelSmoothing(nn.Module):
         one_hot = torch.zeros_like(out).scatter(1, y.view(-1, 1), 1)
 
         one_hot = one_hot * (1 - self.ls) + (1 - one_hot) * self.ls / (self.vocab_size - 1)
-        print(one_hot)
 
         pad_mask = y.ne(self.pad)
 
+        word = pad_mask.sum().item()
         loss = -(one_hot * out).sum(dim=1)
         loss = loss.masked_select(pad_mask).sum()
-        return loss
+
+        return loss/word
 
 
 class Encoder(nn.Module):
@@ -171,13 +174,15 @@ class Transformer(nn.Module):
         super().__init__()
         self.model_size = config.model_size
         self.vocab_size = config.vocab_size
+        self.s_len = config.t_len
+        self.bos = config.bos
 
         self.encoder = Encoder(config)
         self.decoder = Decoder(config)
 
         self.linear_out = nn.Sequential(
             nn.Linear(self.model_size, self.vocab_size),
-            # nn.LogSoftmax(-1)
+            nn.LogSoftmax(-1)
         )
 
         self.loss_func = nn.CrossEntropyLoss()
@@ -193,6 +198,20 @@ class Transformer(nn.Module):
         loss = self.loss_func(result, y)
         return loss
 
+    def sample(self, x, x_pos, y, y_pos):
+        enc_output = self.encoder(x, x_pos)
+        out = torch.ones(x.size(0)) * self.bos
+        result = None
+        for i in range(self.s_len):
+            dec_output, _, _ = self.decoder(x, out.unsqueeze(1), y_pos[:, i].unsqueeze(1), enc_output)
+            gen = self.linear_out(dec_output[:, -1, :])
+            gen = torch.argmax(gen, dim=1)
+            out = torch.cat((out, gen), dim=1)
+            result = dec_output
+        idx = torch.argmax(result, dim=2)
+        loss = self.smoothing(result, y)
+        return idx, loss
+
     def forward(self, x, x_pos, y, y_pos):
         # y, y_pos = y[:, :-1], y_pos[:, :-1]
         enc_output = self.encoder(x, x_pos)
@@ -200,7 +219,7 @@ class Transformer(nn.Module):
 
         out = self.linear_out(dec_output)
 
-        # loss = self.smoothing(out, y)
-        loss = self.compute_loss(out, y)
+        loss = self.smoothing(out, y)
+        # loss = self.compute_loss(out, y)
 
         return out, loss

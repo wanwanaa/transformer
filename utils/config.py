@@ -10,9 +10,10 @@ class Config():
         self.filename_idx2word = 'data/index2word.pkl'
 
         # filename result
-        self.filename_summary = 'results/data/'
+        self.filename_data = 'results/data/'
         self.filename_model = 'result/model/'
         self.filename_rouge = 'result/data/ROUGE.txt'
+        self.filename_gold = 'result/gold/gold_summaries.txt'
 
         # Hyper Parameters
         self.LR = 0.0003
@@ -23,10 +24,11 @@ class Config():
         self.s_len = 50
 
         # positional encoding
-        self.max_len = 300
+        self.max_len = 150
 
         self.beam_size = 10
         self.pad = 0
+        self.bos = 2
 
         self.vocab_size = 4000
         self.model_size = 512

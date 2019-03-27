@@ -17,10 +17,16 @@ class Attention(nn.Module):
         # q, k, v (batch, len, model_size)
         attn = torch.bmm(q, k.transpose(1, 2)) # (batch, len, len)
         attn = attn / math.sqrt(self.d_k)
+        # if q.size(1) == 50 and k.size(1) == 50:
+        #     print(attn)
+        #     print('\n\n')
+
         if mask is not None:
             # Fills elements of self tensor with value where mask is one
-            attn = attn.masked_fill(mask, -np.inf)
+            attn = attn.masked_fill(mask, -1e9)
+
         attn = self.softmax(attn)
+
         out = torch.bmm(attn, v) # (batch, len, size)
         return out, attn
 
@@ -38,7 +44,7 @@ class MultiHeadAttention(nn.Module):
         self.linear_q = nn.Linear(config.model_size, config.model_size)
         self.linear_k = nn.Linear(config.model_size, config.model_size)
         self.linear_v = nn.Linear(config.model_size, config.model_size)
-        self.linear_out = nn.Linear(self.model_size, self.model_size)
+        self.linear_out = nn.Linear(config.model_size, config.model_size)
 
         self.dropout = nn.Dropout(config.dropout)
         self.layer_norm = nn.LayerNorm(config.model_size)

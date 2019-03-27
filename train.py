@@ -151,9 +151,9 @@ def main():
     parser.add_argument('--save_model', '-m', action='store_true', default=False, help="whether to save model")
     args = parser.parse_args()
 
-    ########test##########
-    args.batch_size = 2
-    ########test##########
+    # ########test##########
+    # args.batch_size = 2
+    # ########test##########
 
     if args.batch_size:
         config.batch_size = args.batch_size

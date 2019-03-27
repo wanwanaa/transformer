@@ -108,7 +108,7 @@ def train(args, config, model):
             if torch.cuda.is_available():
                 x = x.cuda()
                 y = y.cuda()
-                x_pos = x.pos.cuda()
+                x_pos = x_pos.cuda()
                 y_pos = y_pos.cuda()
 
             out, loss = model(x, x_pos, y, y_pos)
@@ -120,6 +120,19 @@ def train(args, config, model):
             all_loss += loss.item()
             if step % 200 == 0:
                 print('epoch:', e, '|step:', step, '|train_loss: %.4f' % loss.item())
+
+                # # display the result
+                # if torch.cuda.is_available():
+                #     a = list(y[-1].cpu().numpy())
+                #     b = list(torch.argmax(result[-1], dim=1).cpu().numpy())
+                # else:
+                #     a = list(y[-1].numpy())
+                #     b = list(torch.argmax(result[-1], dim=1).numpy())
+                # a = index2sentence(a, idx2word)
+                # b = index2sentence(b, idx2word)
+                # # display the result
+                # print(''.join(a))
+                # print(''.join(b))
 
         # train loss
         loss = all_loss / num
@@ -151,9 +164,9 @@ def main():
     parser.add_argument('--save_model', '-m', action='store_true', default=False, help="whether to save model")
     args = parser.parse_args()
 
-    # ########test##########
-    # args.batch_size = 2
-    # ########test##########
+    ########test##########
+    args.batch_size = 2
+    ########test##########
 
     if args.batch_size:
         config.batch_size = args.batch_size

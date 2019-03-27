@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from models.layer import EncoderLayer, DecoderLayer
 import math
-import numpy as np
 
 
 def get_non_pad_mask(seq, pad):
@@ -36,6 +35,8 @@ def get_dec_mask(seq):
     mask = torch.triu(
         torch.ones((len, len), dtype=torch.uint8), diagonal=1
     )
+    if torch.cuda.is_available():
+        mask = mask.type(torch.cuda.ByteTensor)
     # (batch, len, len)
     mask = mask.unsqueeze(0).expand(batch, -1, -1)
     return mask
@@ -159,9 +160,8 @@ class Decoder(nn.Module):
 
     def forward(self, x, y, pos, enc_output):
         pad_mask = get_non_pad_mask(y, self.pad)
-        pad_attn_mask = get_non_pad_mask(y, self.pad)
         attn_mask = get_dec_mask(y)
-        attn_self_mask = (pad_attn_mask + attn_mask).gt(0)
+        attn_self_mask = (pad_mask + attn_mask).gt(0)
         pad_attn_mask = get_pad_mask(x, y, self.pad)
 
         dec_output = self.embedding(y) + self.position_dec(pos)

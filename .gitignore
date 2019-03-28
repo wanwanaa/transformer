@@ -3,3 +3,5 @@ data/
 utils/__pycache__
 models/__pycache__
 .vscode/
+result/
+

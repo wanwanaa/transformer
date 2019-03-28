@@ -40,8 +40,8 @@ def test(epoch, config, model):
     for step, batch in enumerate(test_loader):
         num += 1
         x, y = batch
-        x_pos = torch.arange(config.t_len).repeat(x.size(0), 1)
-        y_pos = torch.arange(config.s_len).repeat(x.size(0), 1)
+        x_pos = torch.arange(config.max_len).repeat(x.size(0), 1)
+        y_pos = torch.arange(config.max_len).repeat(x.size(0), 1)
         if torch.cuda.is_available():
             x = x.cuda()
             y = y.cuda()
@@ -54,7 +54,7 @@ def test(epoch, config, model):
         for i in range(result.shape[0]):
             sen = index2sentence(list(result[i]), idx2word)
             r.append(' '.join(sen))
-        print('epoch:', epoch, '|test_loss: %.4f' % (all_loss / num))
+    print('epoch:', epoch, '|test_loss: %.4f' % (all_loss / num))
 
     # write result
     filename_data = config.filename_data + 'summary_' + str(epoch) + '.txt'

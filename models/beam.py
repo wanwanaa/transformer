@@ -2,7 +2,7 @@ import torch
 import math
 
 
-class Beam()
+class Beam():
     def __init__(self, config):
         self.beam_size = config.beam_size
         self.bos = config.bos
@@ -35,26 +35,28 @@ class Beam()
         for i in range(self.beam_size):
             self.path.append(candidate.pop(self.max_path(candidate)))
 
-    def advance(self, data):
-        self.finish()
-        if self.finish_flag:
-            return
-        else:
-            # candidate = []
-            # for i in range(len(self.path)):
-            #     sorted, indices = torch.sort(data[i], descending=True)
-            #     pre_path = self.path[i][0]
-            #     pre_scorce = self.path[i][-1]
-            #     for k in range(self.beam_size):
-            #         p = pre_path.copy()
-            #         p.append(int(indices[k]))
-            #         if sorted[k].item() == 0:
-            #             scorce = -999 + pre_scorce
-            #         # print(sorted[k])
-            #         else:
-            #             scorce = math.log(sorted[k]) + pre_scorce
-            #         if self.cell == 'lstm':
-            #             candidate.append([p, (h[0][:, i], h[1][:, i]), scorce])
-            #         else:
-            #             candidate.append([p, h[i], scorce])
-            # self.sort_path(candidate)
+    # def advance(self, data):
+    #     self.finish()
+    #     if self.finish_flag:
+    #         return
+    #     else:
+    #         candidate = []
+    #         for i in range(len(self.path)):
+    #             # probability
+    #             sorted, indices = torch.sort(data[i], descending=True)
+    #
+    #         #     pre_path = self.path[i][0]
+    #         #     pre_scorce = self.path[i][-1]
+    #         #     for k in range(self.beam_size):
+    #         #         p = pre_path.copy()
+    #         #         p.append(int(indices[k]))
+    #         #         if sorted[k].item() == 0:
+    #         #             scorce = -999 + pre_scorce
+    #         #         # print(sorted[k])
+    #         #         else:
+    #         #             scorce = math.log(sorted[k]) + pre_scorce
+    #         #         if self.cell == 'lstm':
+    #         #             candidate.append([p, (h[0][:, i], h[1][:, i]), scorce])
+    #         #         else:
+    #         #             candidate.append([p, h[i], scorce])
+    #         # self.sort_path(candidate)

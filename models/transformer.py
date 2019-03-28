@@ -177,7 +177,7 @@ class Transformer(nn.Module):
         super().__init__()
         self.model_size = config.model_size
         self.vocab_size = config.vocab_size
-        self.s_len = config.t_len
+        self.s_len = config.s_len
         self.bos = config.bos
 
         self.encoder = Encoder(config)
@@ -201,16 +201,25 @@ class Transformer(nn.Module):
         loss = self.loss_func(result, y)
         return loss
 
+    def beam_sample(self, x, x_pos, y, y_pos):
+        pass
+
     def sample(self, x, x_pos, y, y_pos):
         enc_output = self.encoder(x, x_pos)
         out = torch.ones(x.size(0)) * self.bos
         result = None
+        out = out.unsqueeze(1)
         for i in range(self.s_len):
-            dec_output, _, _ = self.decoder(x, out.unsqueeze(1), y_pos[:, i].unsqueeze(1), enc_output)
+            if torch.cuda.is_available():
+                out = out.type(torch.cuda.LongTensor)
+            else:
+                out = out.type(torch.LongTensor)
+            dec_output = self.decoder(x, out, y_pos[:, :(i+1)], enc_output)
             gen = self.linear_out(dec_output[:, -1, :])
-            gen = torch.argmax(gen, dim=1)
+            gen = torch.argmax(gen, dim=1).unsqueeze(1)
             out = torch.cat((out, gen), dim=1)
             result = dec_output
+        result = self.linear_out(result)
         idx = torch.argmax(result, dim=2)
         loss = self.smoothing(result, y)
         return idx, loss

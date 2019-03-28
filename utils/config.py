@@ -10,7 +10,7 @@ class Config():
         self.filename_idx2word = 'data/index2word.pkl'
 
         # filename result
-        self.filename_data = 'results/data/'
+        self.filename_data = 'result/data/'
         self.filename_model = 'result/model/'
         self.filename_rouge = 'result/data/ROUGE.txt'
         self.filename_gold = 'result/gold/gold_summaries.txt'

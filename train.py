@@ -96,6 +96,10 @@ def train(args, config, model):
     test_loss = []
     test_rouge = []
 
+    # # display the result
+    # f = open('data/index2word.pkl', 'rb')
+    # idx2word = pickle.load(f)
+
     for e in range(args.epoch):
         model.train()
         all_loss = 0
@@ -124,10 +128,10 @@ def train(args, config, model):
                 # # display the result
                 # if torch.cuda.is_available():
                 #     a = list(y[-1].cpu().numpy())
-                #     b = list(torch.argmax(result[-1], dim=1).cpu().numpy())
+                #     b = list(torch.argmax(out[-1], dim=1).cpu().numpy())
                 # else:
                 #     a = list(y[-1].numpy())
-                #     b = list(torch.argmax(result[-1], dim=1).numpy())
+                #     b = list(torch.argmax(out[-1], dim=1).numpy())
                 # a = index2sentence(a, idx2word)
                 # b = index2sentence(b, idx2word)
                 # # display the result

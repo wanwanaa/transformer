@@ -195,6 +195,19 @@ class Transformer(nn.Module):
 
         self.smoothing = LabelSmoothing(config)
 
+    # add <bos> to sentence
+    def convert(self, x):
+        """
+        :param x:(batch, s_len) (word_1, word_2, ... , word_n)
+        :return:(batch, s_len) (<bos>, word_1, ... , word_n-1)
+        """
+        if torch.cuda.is_available():
+            start = (torch.ones(x.size(0), 1) * self.bos).type(torch.cuda.LongTensor)
+        else:
+            start = (torch.ones(x.size(0), 1) * self.bos).type(torch.LongTensor)
+        x = torch.cat((start, x), dim=1)
+        return x[:, :-1]
+
     def compute_loss(self, result, y):
         result = result.contiguous().view(-1, 4000)
         y = y.contiguous().view(-1)
@@ -210,12 +223,15 @@ class Transformer(nn.Module):
         result = None
         out = out.unsqueeze(1)
         for i in range(self.s_len):
+            # print(out)
             if torch.cuda.is_available():
                 out = out.type(torch.cuda.LongTensor)
             else:
                 out = out.type(torch.LongTensor)
+            # print(y_pos[:, :(i+1)])
             dec_output = self.decoder(x, out, y_pos[:, :(i+1)], enc_output)
             gen = self.linear_out(dec_output[:, -1, :])
+            # print(dec_output.size())
             gen = torch.argmax(gen, dim=1).unsqueeze(1)
             out = torch.cat((out, gen), dim=1)
             result = dec_output
@@ -227,11 +243,15 @@ class Transformer(nn.Module):
     def forward(self, x, x_pos, y, y_pos):
         # y, y_pos = y[:, :-1], y_pos[:, :-1]
         enc_output = self.encoder(x, x_pos)
+
+        gold = y
+        y = self.convert(y)
+
         dec_output = self.decoder(x, y, y_pos, enc_output)
 
         out = self.linear_out(dec_output)
 
-        loss = self.smoothing(out, y)
-        # loss = self.compute_loss(out, y)
+        loss = self.smoothing(out, gold)
+        # loss = self.compute_loss(out, gold)
 
         return out, loss

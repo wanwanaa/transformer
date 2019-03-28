@@ -17,7 +17,7 @@ class Config():
 
         # Hyper Parameters
         self.LR = 0.0003
-        self.batch_size = 256
+        self.batch_size = 2
         self.iters = 10000
 
         self.t_len = 150

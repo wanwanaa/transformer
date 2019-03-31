@@ -13,8 +13,15 @@ def valid(epoch, config, model):
     for step, batch in enumerate(valid_loader):
         num += 1
         x, y = batch
-        x_pos = torch.arange(config.t_len).repeat(x.size(0), 1)
-        y_pos = torch.arange(config.s_len).repeat(x.size(0), 1)
+        x_pos = torch.arange(1, config.t_len + 1).repeat(x.size(0), 1)
+        # print(x_pos.size())
+        y_pos = torch.arange(1, config.s_len + 1).repeat(x.size(0), 1)
+        # print(y_pos)
+        x_mask = x.eq(config.pad)
+        # print(x_mask.size())
+        x_pos = x_pos.masked_fill(x_mask, 0)
+        # y_mask = y.eq(config.pad)
+        # y_pos = y_pos.masked_fill(y_mask, 0)
         if torch.cuda.is_available():
             x = x.cuda()
             y = y.cuda()
@@ -40,8 +47,16 @@ def test(epoch, config, model):
     for step, batch in enumerate(test_loader):
         num += 1
         x, y = batch
-        x_pos = torch.arange(config.max_len).repeat(x.size(0), 1)
-        y_pos = torch.arange(config.max_len).repeat(x.size(0), 1)
+        x_pos = torch.arange(1, config.t_len+1).repeat(x.size(0), 1)
+        # print(x_pos.size())
+        y_pos = torch.arange(1, config.s_len+1).repeat(x.size(0), 1)
+        # print(y_pos)
+        x_mask = x.eq(config.pad)
+        # print(x_mask.size())
+        x_pos = x_pos.masked_fill(x_mask, 0)
+        # y_mask = y.eq(config.pad)
+        # y_pos = y_pos.masked_fill(y_mask, 0)
+        # print(y_pos)
         if torch.cuda.is_available():
             x = x.cuda()
             y = y.cuda()
@@ -84,9 +99,10 @@ def test(epoch, config, model):
 def train(args, config, model):
     model.train()
     # optim
-    optimizer = torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9)
+    optimizer = torch.optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-9)
     optim = Optim(optimizer, config)
 
+    # optim = torch.optim.Adam(model.parameters(), lr=0.0003)
     # data
     train_loader = data_load(config.filename_trimmed_train, config.batch_size, True)
 
@@ -107,8 +123,12 @@ def train(args, config, model):
         for step, batch in enumerate(train_loader):
             num += 1
             x, y = batch
-            x_pos = torch.arange(config.t_len).repeat(x.size(0), 1)
-            y_pos = torch.arange(config.s_len).repeat(x.size(0), 1)
+            x_pos = torch.arange(1, config.t_len + 1).repeat(x.size(0), 1)
+            y_pos = torch.arange(1, config.s_len + 1).repeat(x.size(0), 1)
+            x_mask = x.eq(config.pad)
+            x_pos = x_pos.masked_fill(x_mask, 0)
+            y_mask = y.eq(config.pad)
+            y_pos = y_pos.masked_fill(y_mask, 0)
             if torch.cuda.is_available():
                 x = x.cuda()
                 y = y.cuda()
@@ -120,23 +140,33 @@ def train(args, config, model):
             optim.zero_grad()
             loss.backward()
             optim.updata()
+            # optim.step()
 
             all_loss += loss.item()
             if step % 200 == 0:
                 print('epoch:', e, '|step:', step, '|train_loss: %.4f' % loss.item())
 
-                # # display the result
-                # if torch.cuda.is_available():
-                #     a = list(y[-1].cpu().numpy())
-                #     b = list(torch.argmax(out[-1], dim=1).cpu().numpy())
-                # else:
-                #     a = list(y[-1].numpy())
-                #     b = list(torch.argmax(out[-1], dim=1).numpy())
-                # a = index2sentence(a, idx2word)
-                # b = index2sentence(b, idx2word)
-                # # display the result
-                # print(''.join(a))
-                # print(''.join(b))
+            # if step % 2000 == 0:
+            #     # display the result
+            #     if torch.cuda.is_available():
+            #         a = list(y[-1].cpu().numpy())
+            #         b = list(torch.argmax(out[-1], dim=1).cpu().numpy())
+            #     else:
+            #         a = list(y[-1].numpy())
+            #         b = list(torch.argmax(out[-1], dim=1).numpy())
+            #     a = index2sentence(a, idx2word)
+            #     b = index2sentence(b, idx2word)
+            #     # display the result
+            #     print(''.join(a))
+            #     print(''.join(b))
+
+            # if step % 5000 == 0:
+            #     test(e, config, model)
+
+            # if step % 2000 == 0:
+            #     filename = config.filename_model + 'model_' + str(e) + '_' + str(step) + '.pkl'
+            #     save_model(model, filename)
+            #     test(e, config, model)
 
         # train loss
         loss = all_loss / num

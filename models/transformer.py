@@ -51,37 +51,41 @@ def positional_encoding(len, model_size, pad):
     pe[:, 0::2] = torch.sin(position * div_term)
     pe[:, 1::2] = torch.cos(position * div_term)
 
-    # pe[pad] = 0.
+    pe[pad] = 0.
 
     return pe
 
 
-# implement label smoothing KL
-class LabelSmoothing(nn.Module):
-    def __init__(self, config):
-        super().__init__()
-        self.criterion = nn.KLDivLoss(size_average=False)
-        self.ls = config.ls
-        self.vocab_size = config.vocab_size
-        self.pad = config.pad
-
-    def forward(self, out, y):
-        # out (batch, len, vocab_size)
-        # y (batch, len)
-        y = y.view(-1)
-        word = y.ne(self.pad).sum().item()
-        out = out.view(-1, self.vocab_size)
-
-        true_dist = torch.zeros_like(out)
-        true_dist.fill_(self.ls / (self.vocab_size-1))
-
-        true_dist.scatter_(1, y.unsqueeze(1), (1-self.ls))
-
-        mask = torch.nonzero(y == self.pad)
-        true_dist.index_fill_(1, mask.squeeze(), 0.0)
-
-        loss = self.criterion(out, true_dist)
-        return loss/word
+# # implement label smoothing KL
+# class LabelSmoothing(nn.Module):
+#     def __init__(self, config):
+#         super().__init__()
+#         self.criterion = nn.KLDivLoss(size_average=False)
+#         self.ls = config.ls
+#         self.vocab_size = config.vocab_size
+#         self.pad = config.pad
+#
+#     def forward(self, out, y):
+#         # out (batch, len, vocab_size)
+#         # y (batch, len)
+#         y = y.view(-1)
+#         word = y.ne(self.pad).sum().item()
+#         out = out.view(-1, self.vocab_size)
+#
+#         true_dist = torch.zeros_like(out)
+#         true_dist.fill_(self.ls / (self.vocab_size-1))
+#
+#         true_dist.scatter_(1, y.unsqueeze(1), (1-self.ls))
+#
+#         mask = torch.nonzero(y == self.pad)
+#         true_dist.index_fill_(1, mask.squeeze(), 0.0)
+#
+#         # print(y.size())
+#         # print('\n\n')
+#         # print(true_dist.size())
+#
+#         loss = self.criterion(out, true_dist)
+#         return loss/word
 
 
 # # implement label smoothing one-hot
@@ -124,7 +128,7 @@ class Encoder(nn.Module):
 
         # positional Encoding
         self.position_enc = nn.Embedding.from_pretrained(
-            positional_encoding(config.max_len, config.model_size, config.pad), freeze=True
+            positional_encoding(config.t_len+1, config.model_size, config.pad), freeze=True
         )
 
         self.encoder_stack = nn.ModuleList([
@@ -133,12 +137,12 @@ class Encoder(nn.Module):
 
     def forward(self, x, pos):
         # mask
-        pad_mask = get_non_pad_mask(x, self.pad) # (batch, len, 1)
+        non_pad_mask = get_non_pad_mask(x, self.pad) # (batch, len, 1)
         attn_mask = get_attn_pad_mask(x, self.pad) # (batch, len, len)
 
         enc_output = self.embedding(x) + self.position_enc(pos)
         for layer in self.encoder_stack:
-            enc_output, enc_attn = layer(enc_output, pad_mask, attn_mask)
+            enc_output, enc_attn = layer(enc_output, non_pad_mask, attn_mask)
 
         return enc_output
 
@@ -151,7 +155,7 @@ class Decoder(nn.Module):
         self.embedding = nn.Embedding(config.vocab_size, config.model_size)
 
         self.position_dec = nn.Embedding.from_pretrained(
-            positional_encoding(config.max_len, config.model_size, config.pad), freeze=True
+            positional_encoding(config.s_len+1, config.model_size, config.pad), freeze=True
         )
 
         self.decoder_stack = nn.ModuleList([
@@ -159,14 +163,15 @@ class Decoder(nn.Module):
         ])
 
     def forward(self, x, y, pos, enc_output):
-        pad_mask = get_non_pad_mask(y, self.pad)
+        no_pad_mask = get_non_pad_mask(y, self.pad)
         attn_mask = get_dec_mask(y)
+        pad_mask = get_pad_mask(y, y, self.pad)
         attn_self_mask = (pad_mask + attn_mask).gt(0)
-        pad_attn_mask = get_pad_mask(x, y, self.pad)
+        enc_dec_attn_mask = get_pad_mask(x, y, self.pad)
 
         dec_output = self.embedding(y) + self.position_dec(pos)
         for layer in self.decoder_stack:
-            dec_output, _, _ = layer(dec_output, enc_output, pad_mask, attn_self_mask, pad_attn_mask)
+            dec_output, _, _ = layer(dec_output, enc_output, no_pad_mask, attn_self_mask, enc_dec_attn_mask)
 
         return dec_output
 
@@ -179,21 +184,19 @@ class Transformer(nn.Module):
         self.vocab_size = config.vocab_size
         self.s_len = config.s_len
         self.bos = config.bos
+        self.pad = config.pad
+        self.ls = config.ls
 
         self.encoder = Encoder(config)
         self.decoder = Decoder(config)
 
-        self.linear_out = nn.Sequential(
-            nn.Linear(self.model_size, self.vocab_size),
-            nn.LogSoftmax(-1)
-        )
+        self.linear_out = nn.Linear(self.model_size, self.vocab_size)
 
         self.loss_func = nn.CrossEntropyLoss()
+        # self.loss_func = nn.KLDivLoss(size_average=False)
 
         # share the same weight matrix between the encoder and decoder embedding
         self.encoder.embedding.weight = self.decoder.embedding.weight
-
-        self.smoothing = LabelSmoothing(config)
 
     # add <bos> to sentence
     def convert(self, x):
@@ -214,44 +217,86 @@ class Transformer(nn.Module):
         loss = self.loss_func(result, y)
         return loss
 
+    # # implement label smoothing KL
+    # def LabelSmoothing(self, out, y):
+    #     # out (batch, len, vocab_size)
+    #     # y (batch, len)
+    #     y = y.view(-1)
+    #     word = y.ne(self.pad).sum().item()
+    #     out = out.view(-1, self.vocab_size)
+    #
+    #     true_dist = torch.zeros_like(out)
+    #     true_dist.fill_(self.ls / (self.vocab_size - 1))
+    #
+    #     true_dist.scatter_(1, y.unsqueeze(1), (1 - self.ls))
+    #
+    #     mask = torch.nonzero(y == self.pad)
+    #     true_dist.index_fill_(1, mask.squeeze(), 0.0)
+    #
+    #     # print(y.size())
+    #     # print('\n\n')
+    #     # print(true_dist.size())
+    #
+    #     out = torch.nn.LogSoftmax(out)
+    #     loss = self.loss_func(out, true_dist)
+    #     return loss / word
+
+    # implement label smoothing one-hot
+    def LabelSmoothing(self, out, y):
+        # out (batch, len, vocab_size)
+        # y (batch, len)
+        out = out.view(-1, self.vocab_size)
+        out = torch.nn.functional.log_softmax(out, dim=-1)
+        y = y.view(-1)
+
+        one_hot = torch.zeros_like(out).scatter(1, y.view(-1, 1), 1)
+        one_hot = one_hot * (1 - self.ls) + (1 - one_hot) * self.ls / (self.vocab_size - 1)
+
+        pad_mask = y.ne(self.pad)
+        word = pad_mask.sum().item()
+        loss = -(one_hot * out).sum(dim=1)
+        loss = loss.masked_select(pad_mask).sum()
+
+        return loss / word
+
     def beam_sample(self, x, x_pos, y, y_pos):
         pass
 
     def sample(self, x, x_pos, y, y_pos):
         enc_output = self.encoder(x, x_pos)
+        # print(enc_output)
         out = torch.ones(x.size(0)) * self.bos
-        result = None
+        result = []
         out = out.unsqueeze(1)
         for i in range(self.s_len):
-            # print(out)
             if torch.cuda.is_available():
                 out = out.type(torch.cuda.LongTensor)
             else:
                 out = out.type(torch.LongTensor)
-            # print(y_pos[:, :(i+1)])
-            dec_output = self.decoder(x, out, y_pos[:, :(i+1)], enc_output)
+            dec_output = self.decoder(x, out, y_pos[:, :i+1], enc_output)
             gen = self.linear_out(dec_output[:, -1, :])
-            # print(dec_output.size())
+            gen = torch.nn.functional.softmax(gen)
+            result.append(gen)
             gen = torch.argmax(gen, dim=1).unsqueeze(1)
             out = torch.cat((out, gen), dim=1)
-            result = dec_output
-        result = self.linear_out(result)
-        idx = torch.argmax(result, dim=2)
-        loss = self.smoothing(result, y)
-        return idx, loss
+            mask = gen.eq(0).squeeze()
+            if i < self.s_len-1:
+                y_pos[:, i+1] = y_pos[:, i+1].masked_fill(mask, 0)
+
+        result = torch.stack(result)
+        loss = self.LabelSmoothing(result, y)
+        return out, loss
 
     def forward(self, x, x_pos, y, y_pos):
-        # y, y_pos = y[:, :-1], y_pos[:, :-1]
         enc_output = self.encoder(x, x_pos)
 
         gold = y
         y = self.convert(y)
 
         dec_output = self.decoder(x, y, y_pos, enc_output)
-
         out = self.linear_out(dec_output)
 
-        loss = self.smoothing(out, gold)
+        loss = self.LabelSmoothing(out, gold)
         # loss = self.compute_loss(out, gold)
 
         return out, loss

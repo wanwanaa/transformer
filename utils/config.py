@@ -23,9 +23,6 @@ class Config():
         self.t_len = 150
         self.s_len = 50
 
-        # positional encoding
-        self.max_len = 150
-
         self.beam_size = 10
         self.pad = 0
         self.bos = 2

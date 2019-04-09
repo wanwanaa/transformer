@@ -19,7 +19,7 @@ class Attention(nn.Module):
         attn = attn / math.sqrt(self.d_k)
         if mask is not None:
             # Fills elements of self tensor with value where mask is one
-            attn = attn.masked_fill(mask, -1e9)
+            attn = attn.masked_fill(mask, -1e18)
         attn = self.softmax(attn)
         attn = self.dropout(attn)
         out = torch.bmm(attn, v) # (batch, len, size)
@@ -48,7 +48,7 @@ class MultiHeadAttention(nn.Module):
         # nn.init.xavier_normal_(self.linear_out.weight)
 
         self.dropout = nn.Dropout(config.dropout)
-        self.layer_norm = nn.LayerNorm(config.model_size)
+        self.layer_norm = nn.LayerNorm(config.model_size, eps=1e-6)
 
     def forward(self, q, k, v, mask=None):
         # q, k , v(batch, len, model_size)
@@ -91,7 +91,7 @@ class Posfeedward(nn.Module):
         self.w2 = nn.Linear(config.d_ff, config.model_size)
 
         self.relu = nn.ReLU()
-        self.layer_norm = nn.LayerNorm(config.model_size)
+        self.layer_norm = nn.LayerNorm(config.model_size, eps=1e-6)
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x):

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import numpy as np
 from models.layer import EncoderLayer, DecoderLayer
 import math
 
@@ -44,14 +45,30 @@ def get_dec_mask(seq):
 
 def positional_encoding(len, model_size, pad):
     # (len, model_size)
+
     pe = torch.zeros(len, model_size)
     position = torch.arange(0., len).unsqueeze(1)
     div_term = torch.exp(torch.arange(0., model_size, 2) *
                          (-math.log(10000.0) / model_size))
+    # div_term_cos = torch.exp(torch.arange(1., model_size, 2) *
+    #                          (-math.log(10000.0) / model_size))
+    # print('sin:', div_term_sin.size())
+    # print('cos:', div_term_cos.size())
     pe[:, 0::2] = torch.sin(position * div_term)
     pe[:, 1::2] = torch.cos(position * div_term)
 
     pe[pad] = 0.
+    # def cal_angle(position, hid_idx):
+    #     return position / np.power(10000, 2 * (hid_idx // 2) / model_size)
+    #
+    # def get_posi_angle_vec(position):
+    #     return [cal_angle(position, hid_j) for hid_j in range(model_size)]
+    #
+    # sinusoid_table = np.array([get_posi_angle_vec(pos_i) for pos_i in range(len)])
+    #
+    # sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
+    # sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
+    # print(pe[1][400])
 
     return pe
 

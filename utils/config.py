@@ -1,7 +1,7 @@
 class Config():
     def __init__(self):
         # data
-        self.filename_trimmed_train = 'data/valid.pt'
+        self.filename_trimmed_train = 'data/train.pt'
         self.filename_trimmed_valid = 'data/valid.pt'
         self.filename_trimmed_test = 'data/test.pt'
 

@@ -40,3 +40,4 @@ class Config():
         self.warmup_steps = 4000
 
         self.ls = 0.1
+        self.accumulation_steps = 8

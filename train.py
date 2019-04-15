@@ -137,19 +137,20 @@ def train(args, config, model):
                 y = y.cuda()
                 x_pos = x_pos.cuda()
                 y_pos = y_pos.cuda()
-
             out = model(x, x_pos, y, y_pos)
 
             loss = loss_func(out, y)
-
-            optim.zero_grad()
-            loss.backward()
-            optim.updata()
-            # optim.step()
-
             all_loss += loss.item()
             if step % 200 == 0:
                 print('epoch:', e, '|step:', step, '|train_loss: %.4f' % loss.item())
+
+            # loss regularization
+            loss = loss/config.accumulation_steps
+            loss.backward()
+            if ((step+1) % config.accumulation_steps) == 0:
+                optim.updata()
+                optim.zero_grad()
+            # optim.step()
 
             # if step % 2000 == 0:
             #     # display the result

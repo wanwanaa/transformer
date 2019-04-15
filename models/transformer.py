@@ -186,9 +186,11 @@ class Transformer(nn.Module):
             result.append(gen)
             gen = torch.argmax(gen, dim=1).unsqueeze(1)
             out = torch.cat((out, gen), dim=1)
-            mask = gen.eq(0).squeeze()
-            if i < self.s_len-1:
-                y_pos[:, i+1] = y_pos[:, i+1].masked_fill(mask, 0)
+            # ##########???#############
+            # mask = gen.eq(0).squeeze()
+            # if i < self.s_len-1:
+            #     y_pos[:, i+1] = y_pos[:, i+1].masked_fill(mask, 0)
+            # ##########################
 
         result = torch.stack(result)
         return result, out

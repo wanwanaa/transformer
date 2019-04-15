@@ -10,4 +10,6 @@ def load_model(config, filename):
 def save_model(model, filename):
     if isinstance(model, torch.nn.DataParallel):
         torch.save(model.module.state_dict(), filename)
+    else:
+        torch.save(model.state_dict(), filename)
     print('model save at ', filename)

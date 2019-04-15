@@ -18,8 +18,8 @@ class Config():
         self.filename_gold = 'result/gold/gold_summaries.txt'
 
         # Hyper Parameters
-        self.LR = 0.0003
-        self.batch_size = 2
+        self.LR = 0.003
+        self.batch_size = 64
         self.iters = 10000
 
         self.t_len = 150

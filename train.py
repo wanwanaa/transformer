@@ -198,7 +198,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size', '-b', type=int, default=64, help='batch size for train')
-    parser.add_argument('--epoch', '-e', type=int, default=20, help='number of training epochs')
+    parser.add_argument('--epoch', '-e', type=int, default=50, help='number of training epochs')
     parser.add_argument('--n_layer', '-n', type=int, default=6, help='number of encoder layers')
     parser.add_argument('-seed', '-s', type=int, default=123, help="Random seed")
     parser.add_argument('--save_model', '-m', action='store_true', default=False, help="whether to save model")
@@ -206,7 +206,7 @@ def main():
     args = parser.parse_args()
 
     ########test##########
-    args.batch_size = 2
+    # args.batch_size = 2
     ########test##########
 
     if args.batch_size:

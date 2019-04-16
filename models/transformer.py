@@ -77,12 +77,12 @@ class Encoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.n_layer = config.n_layer
-        self.vocab_size = config.vocab_size
+        self.src_vocab_size = config.src_vocab_size
         self.model_size = config.model_size
         self.pad = config.pad
 
         # word embedding
-        self.embedding = nn.Embedding(self.vocab_size, self.model_size)
+        self.embedding = nn.Embedding(self.src_vocab_size, self.model_size)
 
         # positional Encoding
         self.position_enc = nn.Embedding.from_pretrained(
@@ -110,7 +110,7 @@ class Decoder(nn.Module):
         super().__init__()
         self.pad = config.pad
 
-        self.embedding = nn.Embedding(config.vocab_size, config.model_size)
+        self.embedding = nn.Embedding(config.tgt_vocab_size, config.model_size)
 
         self.position_dec = nn.Embedding.from_pretrained(
             positional_encoding(config.s_len+1, config.model_size, config.pad), freeze=True
@@ -139,7 +139,7 @@ class Transformer(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.model_size = config.model_size
-        self.vocab_size = config.vocab_size
+        self.tgt_vocab_size = config.tgt_vocab_size
         self.s_len = config.s_len
         self.bos = config.bos
         self.pad = config.pad
@@ -148,10 +148,11 @@ class Transformer(nn.Module):
         self.encoder = Encoder(config)
         self.decoder = Decoder(config)
 
-        self.linear_out = nn.Linear(self.model_size, self.vocab_size)
+        self.linear_out = nn.Linear(self.model_size, self.tgt_vocab_size)
 
         # share the same weight matrix between the encoder and decoder embedding
-        self.encoder.embedding.weight = self.decoder.embedding.weight
+        if config.share_vocab:
+            self.encoder.embedding.weight = self.decoder.embedding.weight
 
     # add <bos> to sentence
     def convert(self, x):

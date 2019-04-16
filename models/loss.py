@@ -8,7 +8,7 @@ class LabelSmoothing(nn.Module):
         super().__init__()
         self.criterion = nn.KLDivLoss(size_average=False)
         self.ls = config.ls
-        self.vocab_size = config.vocab_size
+        self.tgt_vocab_size = config.tgt_vocab_size
         self.pad = config.pad
 
     def forward(self, out, y):
@@ -16,10 +16,10 @@ class LabelSmoothing(nn.Module):
         # y (batch, len)
         y = y.view(-1)
         word = y.ne(self.pad).sum().item()
-        out = out.view(-1, self.vocab_size)
+        out = out.view(-1, self.tgt_vocab_size)
 
         true_dist = torch.zeros_like(out)
-        true_dist.fill_(self.ls / (self.vocab_size-2))
+        true_dist.fill_(self.ls / (self.tgt_vocab_size-2))
 
         true_dist.scatter_(1, y.unsqueeze(1), (1-self.ls))
 

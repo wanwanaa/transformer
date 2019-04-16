@@ -29,6 +29,10 @@ def valid(epoch, config, model, loss_func):
             result, _ = model.sample(x, x_pos, y, y_pos)
         loss = loss_func(result, y)
         all_loss += loss.item()
+        ###########################
+        if step == 2:
+            break
+        ###########################
     print('epoch:', epoch, '|valid_loss: %.4f' % (all_loss / num))
     return all_loss / num
 
@@ -65,6 +69,10 @@ def test(epoch, config, model, loss_func):
         for i in range(out.shape[0]):
             sen = index2sentence(list(out[i]), idx2word)
             r.append(' '.join(sen))
+        # ###########################
+        # if step == 2:
+        #     break
+        # ###########################
     print('epoch:', epoch, '|test_loss: %.4f' % (all_loss / num))
 
     # write result
@@ -151,6 +159,10 @@ def train(args, config, model):
                 optim.updata()
                 optim.zero_grad()
             # optim.step()
+            # ###########################
+            # if step == 2:
+            #     break
+            # ###########################
 
             # if step % 2000 == 0:
             #     # display the result

@@ -40,12 +40,12 @@ class MultiHeadAttention(nn.Module):
         self.linear_q = nn.Linear(config.model_size, config.model_size)
         self.linear_k = nn.Linear(config.model_size, config.model_size)
         self.linear_v = nn.Linear(config.model_size, config.model_size)
-        nn.init.normal_(self.linear_q.weight, mean=0, std=np.sqrt(2.0 / (self.model_size + self.d_k)))
-        nn.init.normal_(self.linear_k.weight, mean=0, std=np.sqrt(2.0 / (self.model_size + self.d_k)))
-        nn.init.normal_(self.linear_v.weight, mean=0, std=np.sqrt(2.0 / (self.model_size + self.d_k)))
+        # nn.init.normal_(self.linear_q.weight, mean=0, std=np.sqrt(2.0 / (self.model_size + self.d_k)))
+        # nn.init.normal_(self.linear_k.weight, mean=0, std=np.sqrt(2.0 / (self.model_size + self.d_k)))
+        # nn.init.normal_(self.linear_v.weight, mean=0, std=np.sqrt(2.0 / (self.model_size + self.d_k)))
 
         self.linear_out = nn.Linear(config.model_size, config.model_size)
-        nn.init.xavier_normal_(self.linear_out.weight)
+        # nn.init.xavier_normal_(self.linear_out.weight)
 
         self.dropout = nn.Dropout(config.dropout)
         self.layer_norm = nn.LayerNorm(config.model_size, eps=1e-6)

@@ -173,8 +173,16 @@ class Transformer(nn.Module):
     def sample(self, x, x_pos, y, y_pos):
         enc_output = self.encoder(x, x_pos)
         # print(enc_output)
+        # <start> connect to decoding input at each step
+        start = torch.ones(x.size(0)) * self.bos
+        start = start.unsqueeze(1)
+        if torch.cuda.is_available():
+            start = start.type(torch.cuda.LongTensor)
+        else:
+            start = start.type(torch.LongTensor)
+
+        # the first <start>
         out = torch.ones(x.size(0)) * self.bos
-        result = []
         out = out.unsqueeze(1)
         for i in range(self.s_len):
             if torch.cuda.is_available():
@@ -182,19 +190,19 @@ class Transformer(nn.Module):
             else:
                 out = out.type(torch.LongTensor)
             dec_output = self.decoder(x, out, y_pos[:, :i+1], enc_output)
-            gen = self.linear_out(dec_output[:, -1, :])
-            gen = torch.nn.functional.softmax(gen, -1)
-            result.append(gen)
-            gen = torch.argmax(gen, dim=1).unsqueeze(1)
-            out = torch.cat((out, gen), dim=1)
+            dec_output = self.linear_out(dec_output) # (batch, len, vocab_size)
+            gen = torch.nn.functional.softmax(dec_output, -1)
+            gen = torch.argmax(gen, dim=-1) # (batch, len) eg. 1, 2, 3
+            # print(gen.size())
+            out = torch.cat((start, gen), dim=1) # (batch, len+1) eg. <start>, 1, 2, 3
+            # print(out.size())
             # ##########???#############
             # mask = gen.eq(0).squeeze()
             # if i < self.s_len-1:
             #     y_pos[:, i+1] = y_pos[:, i+1].masked_fill(mask, 0)
             # ##########################
 
-        result = torch.stack(result)
-        return result, out
+        return dec_output, out
 
     def forward(self, x, x_pos, y, y_pos):
         enc_output = self.encoder(x, x_pos)

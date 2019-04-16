@@ -69,10 +69,10 @@ def test(epoch, config, model, loss_func):
         for i in range(out.shape[0]):
             sen = index2sentence(list(out[i]), idx2word)
             r.append(' '.join(sen))
-        # ###########################
-        # if step == 2:
-        #     break
-        # ###########################
+        ###########################
+        if step == 2:
+            break
+        ###########################
     print('epoch:', epoch, '|test_loss: %.4f' % (all_loss / num))
 
     # write result
@@ -102,7 +102,7 @@ def test(epoch, config, model, loss_func):
 
 def train(args, config, model):
     # optim
-    optimizer = torch.optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-9)
+    optimizer = torch.optim.Adam(model.parameters(), betas=(0.9, 0.999), eps=1e-9)
     optim = Optim(optimizer, config)
     # KLDivLoss
     loss_func = LabelSmoothing(config)
@@ -159,10 +159,10 @@ def train(args, config, model):
                 optim.updata()
                 optim.zero_grad()
             # optim.step()
-            # ###########################
-            # if step == 2:
-            #     break
-            # ###########################
+            ###########################
+            if step == 2:
+                break
+            ###########################
 
             # if step % 2000 == 0:
             #     # display the result
@@ -218,7 +218,7 @@ def main():
     args = parser.parse_args()
 
     ########test##########
-    # args.batch_size = 2
+    args.batch_size = 2
     ########test##########
 
     if args.batch_size:

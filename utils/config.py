@@ -7,6 +7,7 @@ class Config():
 
         # vocab
         self.filename_idx2word = 'data/clean/data_char/src_index2word.pkl'
+        self.filename_word2idx = 'data/clean/data_char/src_word2index.pkl'
         # self.filename_idx2word = 'data/clean/data_hybird/tgt_index2word.pkl'
         # self.filename_word2idx = 'data/clean/data_hybird/src_word2index.pkl'
 
@@ -37,7 +38,7 @@ class Config():
         self.share_vocab = False
         self.model_size = 512
         self.d_ff = 2048
-        self.dropout = 0.1
+        self.dropout = 0.3
         self.n_head = 8
         self.n_layer = 6
 

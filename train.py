@@ -29,10 +29,10 @@ def valid(epoch, config, model, loss_func):
             result, _ = model.sample(x, x_pos, y, y_pos)
         loss = loss_func(result, y)
         all_loss += loss.item()
-        ###########################
-        if step == 2:
-            break
-        ###########################
+        # ###########################
+        # if step == 2:
+        #     break
+        # ###########################
     print('epoch:', epoch, '|valid_loss: %.4f' % (all_loss / num))
     return all_loss / num
 
@@ -69,10 +69,10 @@ def test(epoch, config, model, loss_func):
         for i in range(out.shape[0]):
             sen = index2sentence(list(out[i]), idx2word)
             r.append(' '.join(sen))
-        ###########################
-        if step == 2:
-            break
-        ###########################
+        # ###########################
+        # if step == 2:
+        #     break
+        # ###########################
     print('epoch:', epoch, '|test_loss: %.4f' % (all_loss / num))
 
     # write result
@@ -119,9 +119,9 @@ def train(args, config, model):
     test_loss = []
     test_rouge = []
 
-    # # display the result
-    # f = open('data/index2word.pkl', 'rb')
-    # idx2word = pickle.load(f)
+    # display the result
+    f = open('data/clean/data_char/src_index2word.pkl', 'rb')
+    idx2word = pickle.load(f)
 
     if args.checkpoint != 0:
         model.load_state_dict(torch.load(config.filename_model + 'model_' + str(args.checkpoint) + '.pkl'))
@@ -151,35 +151,36 @@ def train(args, config, model):
             all_loss += loss.item()
             if step % 200 == 0:
                 print('epoch:', e, '|step:', step, '|train_loss: %.4f' % loss.item())
+                # display the result
+                if torch.cuda.is_available():
+                    a = list(y[-1].cpu().numpy())
+                    b = list(torch.argmax(out[-1], dim=1).cpu().numpy())
+                else:
+                    a = list(y[-1].numpy())
+                    b = list(torch.argmax(out[-1], dim=1).numpy())
+                a = index2sentence(a, idx2word)
+                b = index2sentence(b, idx2word)
+                # display the result
+                print(''.join(a))
+                print(''.join(b))
 
-            # loss regularization
-            loss = loss/config.accumulation_steps
+            # # loss regularization
+            # loss = loss/config.accumulation_steps
+            # loss.backward()
+            # if ((step+1) % config.accumulation_steps) == 0:
+            #     optim.updata()
+            #     optim.zero_grad()
+            optim.zero_grad()
             loss.backward()
-            if ((step+1) % config.accumulation_steps) == 0:
-                optim.updata()
-                optim.zero_grad()
+            optim.updata()
             # optim.step()
-            ###########################
-            if step == 2:
-                break
-            ###########################
+            # ###########################
+            # if step == 2:
+            #     break
+            # ###########################
 
-            # if step % 2000 == 0:
-            #     # display the result
-            #     if torch.cuda.is_available():
-            #         a = list(y[-1].cpu().numpy())
-            #         b = list(torch.argmax(out[-1], dim=1).cpu().numpy())
-            #     else:
-            #         a = list(y[-1].numpy())
-            #         b = list(torch.argmax(out[-1], dim=1).numpy())
-            #     a = index2sentence(a, idx2word)
-            #     b = index2sentence(b, idx2word)
-            #     # display the result
-            #     print(''.join(a))
-            #     print(''.join(b))
-
-            # if step % 5000 == 0:
-            #     test(e, config, model)
+            # if step % 1000 == 0:
+            #     test(e, config, model, loss_func)
 
             # if step % 2000 == 0:
             #     filename = config.filename_model + 'model_' + str(e) + '_' + str(step) + '.pkl'
@@ -218,7 +219,7 @@ def main():
     args = parser.parse_args()
 
     ########test##########
-    args.batch_size = 2
+    # args.batch_size = 5
     ########test##########
 
     if args.batch_size:

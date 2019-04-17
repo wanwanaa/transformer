@@ -6,7 +6,7 @@ class Vocab():
     def __init__(self, config, datasets=None):
         self.filename_idx2word = config.filename_idx2word
         self.filename_word2idx = config.filename_word2idx
-        self.vocab_size = config.vocab_size
+        self.vocab_size = config.src_vocab_size
         self.word2idx = {}
         self.idx2word = {}
 

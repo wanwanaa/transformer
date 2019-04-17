@@ -33,11 +33,13 @@ def test():
     config = Config()
     vocab = Vocab(config)
 
-    test = torch.load(config.filename_trimmed_test)
+    test = torch.load(config.filename_trimmed_train)
     sen = index2sentence(np.array(test[0][0]), vocab.idx2word)
+    summary = index2sentence(np.array(test[0][1]), vocab.idx2word)
     print(sen)
+    print(summary)
 
 
 if __name__ == '__main__':
-    main()
-    # test()
+    # main()
+    test()

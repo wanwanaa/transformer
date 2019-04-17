@@ -184,6 +184,7 @@ class Transformer(nn.Module):
         # the first <start>
         out = torch.ones(x.size(0)) * self.bos
         out = out.unsqueeze(1)
+        dec_output = None
         for i in range(self.s_len):
             if torch.cuda.is_available():
                 out = out.type(torch.cuda.LongTensor)

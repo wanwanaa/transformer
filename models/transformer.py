@@ -57,7 +57,7 @@ def positional_encoding(len, model_size, pad):
     pe[:, 0::2] = torch.sin(position * div_term)
     pe[:, 1::2] = torch.cos(position * div_term)
 
-    pe[pad] = 0.
+    # pe[pad] = 0.
     # def cal_angle(position, hid_idx):
     #     return position / np.power(10000, 2 * (hid_idx // 2) / model_size)
     #
@@ -89,16 +89,21 @@ class Encoder(nn.Module):
             positional_encoding(config.t_len+1, config.model_size, config.pad), freeze=True
         )
 
+        self.dropout = nn.Dropout(config.dropout)
+
         self.encoder_stack = nn.ModuleList([
             EncoderLayer(config) for _ in range(self.n_layer)
         ])
+        self.layer_norm = nn.LayerNorm(config.model_size, eps=1e-6)
 
     def forward(self, x, pos):
         # mask
         non_pad_mask = get_non_pad_mask(x, self.pad) # (batch, len, 1)
         attn_mask = get_attn_pad_mask(x, self.pad) # (batch, len, len)
 
-        enc_output = self.embedding(x) + self.position_enc(pos)
+        enc_output = self.embedding(x) * math.sqrt(self.model_size) + self.position_enc(pos)
+        enc_output = self.dropout(enc_output)
+        enc_output = self.layer_norm(enc_output)
         for layer in self.encoder_stack:
             enc_output, enc_attn = layer(enc_output, non_pad_mask, attn_mask)
 
@@ -109,6 +114,7 @@ class Decoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.pad = config.pad
+        self.model_size = config.model_size
 
         self.embedding = nn.Embedding(config.tgt_vocab_size, config.model_size)
 
@@ -116,9 +122,12 @@ class Decoder(nn.Module):
             positional_encoding(config.s_len+1, config.model_size, config.pad), freeze=True
         )
 
+        self.dropout = nn.Dropout(config.dropout)
+
         self.decoder_stack = nn.ModuleList([
             DecoderLayer(config) for _ in range(config.n_layer)
         ])
+        self.layer_norm = nn.LayerNorm(config.model_size, eps=1e-6)
 
     def forward(self, x, y, pos, enc_output):
         no_pad_mask = get_non_pad_mask(y, self.pad)
@@ -127,7 +136,9 @@ class Decoder(nn.Module):
         attn_self_mask = (pad_mask + attn_mask).gt(0)
         enc_dec_attn_mask = get_pad_mask(x, y, self.pad)
 
-        dec_output = self.embedding(y) + self.position_dec(pos)
+        dec_output = self.embedding(y) * math.sqrt(self.model_size) + self.position_dec(pos)
+        dec_output = self.dropout(dec_output)
+        enc_output = self.layer_norm(enc_output)
         for layer in self.decoder_stack:
             dec_output, _, _ = layer(dec_output, enc_output, no_pad_mask, attn_self_mask, enc_dec_attn_mask)
 
@@ -197,11 +208,9 @@ class Transformer(nn.Module):
             # print(gen.size())
             out = torch.cat((start, gen), dim=1) # (batch, len+1) eg. <start>, 1, 2, 3
             # print(out.size())
-            # ##########???#############
             # mask = gen.eq(0).squeeze()
             # if i < self.s_len-1:
             #     y_pos[:, i+1] = y_pos[:, i+1].masked_fill(mask, 0)
-            # ##########################
 
         return dec_output, out
 
@@ -210,6 +219,8 @@ class Transformer(nn.Module):
 
         # gold = y
         y = self.convert(y)
+        y_mask = y.eq(self.pad)
+        y_pos = y_pos.masked_fill(y_mask, 0)
 
         dec_output = self.decoder(x, y, y_pos, enc_output)
         out = self.linear_out(dec_output)

@@ -7,7 +7,7 @@ import torch.nn.functional as F
 class LabelSmoothing(nn.Module):
     def __init__(self, config):
         super().__init__()
-        # self.criterion = nn.KLDivLoss(size_average=False)
+        self.criterion = nn.KLDivLoss(size_average=False)
         self.ls = config.ls
         self.tgt_vocab_size = config.tgt_vocab_size
         self.pad = config.pad
@@ -32,8 +32,8 @@ class LabelSmoothing(nn.Module):
         true_dist = true_dist.transpose(0, 1)
 
         out = torch.nn.functional.log_softmax(out, dim=-1)
-        # loss = self.criterion(out, true_dist)
-        loss = F.binary_cross_entropy_with_logits(out, true_dist, size_average=False)
+        loss = self.criterion(out, true_dist)
+        # loss = F.binary_cross_entropy_with_logits(out, true_dist, size_average=False)
 
         return loss/word
 

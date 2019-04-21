@@ -102,7 +102,7 @@ def test(epoch, config, model, loss_func):
 
 def train(args, config, model):
     # optim
-    optimizer = torch.optim.Adam(model.parameters(), betas=(0.9, 0.999), eps=1e-9)
+    optimizer = torch.optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-9)
     optim = Optim(optimizer, config)
     # KLDivLoss
     loss_func = LabelSmoothing(config)
@@ -119,9 +119,9 @@ def train(args, config, model):
     test_loss = []
     test_rouge = []
 
-    # display the result
-    f = open('data/clean/data_char/src_index2word.pkl', 'rb')
-    idx2word = pickle.load(f)
+    # # display the result
+    # f = open('data/clean/data_char/src_index2word.pkl', 'rb')
+    # idx2word = pickle.load(f)
 
     if args.checkpoint != 0:
         model.load_state_dict(torch.load(config.filename_model + 'model_' + str(args.checkpoint) + '.pkl'))
@@ -138,8 +138,8 @@ def train(args, config, model):
             y_pos = torch.arange(1, config.s_len + 1).repeat(x.size(0), 1)
             x_mask = x.eq(config.pad)
             x_pos = x_pos.masked_fill(x_mask, 0)
-            y_mask = y.eq(config.pad)
-            y_pos = y_pos.masked_fill(y_mask, 0)
+            # y_mask = y.eq(config.pad)
+            # y_pos = y_pos.masked_fill(y_mask, 0)
             if torch.cuda.is_available():
                 x = x.cuda()
                 y = y.cuda()
@@ -151,18 +151,19 @@ def train(args, config, model):
             all_loss += loss.item()
             if step % 200 == 0:
                 print('epoch:', e, '|step:', step, '|train_loss: %.4f' % loss.item())
-                # display the result
-                if torch.cuda.is_available():
-                    a = list(y[-1].cpu().numpy())
-                    b = list(torch.argmax(out[-1], dim=1).cpu().numpy())
-                else:
-                    a = list(y[-1].numpy())
-                    b = list(torch.argmax(out[-1], dim=1).numpy())
-                a = index2sentence(a, idx2word)
-                b = index2sentence(b, idx2word)
-                # display the result
-                print(''.join(a))
-                print(''.join(b))
+                # # display the result
+                # if torch.cuda.is_available():
+                #     a = list(y[-1].cpu().numpy())
+                #     b = list(torch.argmax(out[-1], dim=1).cpu().numpy())
+                # else:
+                #     print(y[-1])
+                #     a = list(y[-1].numpy())
+                #     b = list(torch.argmax(out[-1], dim=1).numpy())
+                # a = index2sentence(a, idx2word)
+                # b = index2sentence(b, idx2word)
+                # # display the result
+                # print(''.join(a))
+                # print(''.join(b))
 
             # # loss regularization
             # loss = loss/config.accumulation_steps
@@ -179,8 +180,8 @@ def train(args, config, model):
             #     break
             # ###########################
 
-            # if step % 1000 == 0:
-            #     test(e, config, model, loss_func)
+            if step % 500 == 0:
+                test(e, config, model, loss_func)
 
             # if step % 2000 == 0:
             #     filename = config.filename_model + 'model_' + str(e) + '_' + str(step) + '.pkl'
@@ -219,7 +220,7 @@ def main():
     args = parser.parse_args()
 
     ########test##########
-    # args.batch_size = 5
+    # args.batch_size = 1
     ########test##########
 
     if args.batch_size:

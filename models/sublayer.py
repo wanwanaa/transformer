@@ -37,9 +37,9 @@ class MultiHeadAttention(nn.Module):
 
         self.attention = Attention(config)
 
-        self.linear_q = nn.Linear(config.model_size, config.model_size, bias=False)
-        self.linear_k = nn.Linear(config.model_size, config.model_size, bias=False)
-        self.linear_v = nn.Linear(config.model_size, config.model_size, bias=False)
+        self.linear_q = nn.Linear(config.model_size, config.model_size)
+        self.linear_k = nn.Linear(config.model_size, config.model_size)
+        self.linear_v = nn.Linear(config.model_size, config.model_size)
         # nn.init.normal_(self.linear_q.weight, mean=0, std=np.sqrt(2.0 / (self.model_size + self.d_k)))
         # nn.init.normal_(self.linear_k.weight, mean=0, std=np.sqrt(2.0 / (self.model_size + self.d_k)))
         # nn.init.normal_(self.linear_v.weight, mean=0, std=np.sqrt(2.0 / (self.model_size + self.d_k)))
@@ -87,21 +87,23 @@ class MultiHeadAttention(nn.Module):
 class Posfeedward(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.w1 = nn.Conv1d(config.model_size, config.d_ff, 1)
-        self.w2 = nn.Conv1d(config.d_ff, config.model_size, 1)
-        # self.w1 = nn.Linear(config.model_size, config.d_ff)
-        # self.w2 = nn.Linear(config.d_ff, config.model_size)
+        # self.w1 = nn.Conv1d(config.model_size, config.d_ff, 1)
+        # self.w2 = nn.Conv1d(config.d_ff, config.model_size, 1)
+        self.w1 = nn.Linear(config.model_size, config.d_ff)
+        self.w2 = nn.Linear(config.d_ff, config.model_size)
 
-        self.selu = nn.SELU()
+        self.relu = nn.ReLU()
         self.layer_norm = nn.LayerNorm(config.model_size, eps=1e-6)
-        self.dropout = nn.Dropout(config.dropout)
+        self.dropout1 = nn.Dropout(config.dropout)
+        self.dropout2 = nn.Dropout(config.dropout)
 
     def forward(self, x):
         # (batch, len, model_size)
-        out = x.transpose(1, 2) # (batch, model_size, len)
-        out = self.w2(self.selu(self.w1(out)))
-        out = out.transpose(1, 2)
-        out = self.dropout(out)
+        # out = x.transpose(1, 2) # (batch, model_size, len)
+        # out = self.w2(self.relu(self.w1(x)))
+        # out = out.transpose(1, 2)
+        out = self.dropout1(self.relu(self.w1(x)))
+        out = self.dropout2(self.w2(out))
         out = self.layer_norm(x + out)
 
         return out

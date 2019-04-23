@@ -4,7 +4,7 @@ class Config():
         # self.filename_trimmed_train = 'data/clean/data_char/valid.pt'
         # self.filename_trimmed_valid = 'data/clean/data_char/valid.pt'
         # self.filename_trimmed_test = 'data/clean/data_char/test.pt'
-        self.filename_trimmed_train = 'data/clean/data_hybird/train.pt'
+        self.filename_trimmed_train = 'data/clean/data_hybird/valid.pt'
         self.filename_trimmed_valid = 'data/clean/data_hybird/valid.pt'
         self.filename_trimmed_test = 'data/clean/data_hybird/test.pt'
 
@@ -27,7 +27,7 @@ class Config():
         self.batch_size = 64
         self.iters = 10000
 
-        self.t_len = 80
+        self.t_len = 150
         self.s_len = 50
 
         self.beam_size = 10
@@ -41,12 +41,10 @@ class Config():
         self.share_vocab = False
         self.model_size = 512
         self.d_ff = 2048
-        self.dropout = 0.3
+        self.dropout = 0.1
         self.n_head = 8
         self.n_layer = 6
-
-        # self.optimizer = torch.optim.Adam()
         self.warmup_steps = 4000
-
+        self.lr = 0.2
         self.ls = 0.1
-        self.accumulation_steps = 8
+        self.accumulation_steps = 4

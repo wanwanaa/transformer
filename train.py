@@ -14,8 +14,9 @@ def valid(epoch, config, model, loss_func):
     all_loss = 0
     num = 0
     for step, batch in enumerate(tqdm(valid_loader)):
-        num += 1
+        # num += 1
         x, y = batch
+        num += y.ne(config.pad).sum().item()
         x_pos = torch.arange(1, config.t_len + 1).repeat(x.size(0), 1)
         y_pos = torch.arange(1, config.s_len + 1).repeat(x.size(0), 1)
         x_mask = x.eq(config.pad)
@@ -50,8 +51,9 @@ def test(epoch, config, model, loss_func):
     idx2word = pickle.load(open(config.filename_idx2word, 'rb'))
     r = []
     for step, batch in enumerate(tqdm(test_loader)):
-        num += 1
+        # num += 1
         x, y = batch
+        num += y.ne(config.pad).sum().item()
         x_pos = torch.arange(1, config.t_len+1).repeat(x.size(0), 1)
         y_pos = torch.arange(1, config.s_len+1).repeat(x.size(0), 1)
         x_mask = x.eq(config.pad)
@@ -97,13 +99,14 @@ def test(epoch, config, model, loss_func):
           ' p: %.4f' % score['rouge-l']['p'],
           ' r: %.4f' % score['rouge-l']['r'])
 
-    return score, all_loss / num
+    return score['rouge-2']['f'], all_loss / num
 
 
 def train(args, config, model):
     # optim
-    optimizer = torch.optim.Adam(model.parameters(), betas=(0.9, 0.98), eps=1e-9)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr, betas=(0.9, 0.999), eps=1e-9)
     optim = Optim(optimizer, config)
+    # optim.zero_grad()
     # KLDivLoss
     loss_func = LabelSmoothing(config)
     # One-hot
@@ -114,10 +117,7 @@ def train(args, config, model):
     train_loader = data_load(config.filename_trimmed_train, config.batch_size, True)
 
     # loss result
-    train_loss = []
-    valid_loss = []
-    test_loss = []
-    test_rouge = []
+    # train_loss = []
 
     # # display the result
     # f = open('data/clean/data_char/src_index2word.pkl', 'rb')
@@ -131,9 +131,11 @@ def train(args, config, model):
         model.train()
         all_loss = 0
         num = 0
+        max_sorce = 0
         for step, batch in enumerate(tqdm(train_loader)):
-            num += 1
+            # num += 1
             x, y = batch
+            num += y.ne(config.pad).sum().item()
             x_pos = torch.arange(1, config.t_len + 1).repeat(x.size(0), 1)
             y_pos = torch.arange(1, config.s_len + 1).repeat(x.size(0), 1)
             x_mask = x.eq(config.pad)
@@ -150,7 +152,8 @@ def train(args, config, model):
             loss = loss_func(out, y)
             all_loss += loss.item()
             if step % 200 == 0:
-                print('epoch:', e, '|step:', step, '|train_loss: %.4f' % loss.item())
+                word = y.ne(config.pad).sum().item()
+                print('epoch:', e, '|step:', step, '|train_loss: %.4f' % (loss.item()/word))
                 # # display the result
                 # if torch.cuda.is_available():
                 #     a = list(y[-1].cpu().numpy())
@@ -165,46 +168,49 @@ def train(args, config, model):
                 # print(''.join(a))
                 # print(''.join(b))
 
-            # # loss regularization
-            # loss = loss/config.accumulation_steps
-            # loss.backward()
-            # if ((step+1) % config.accumulation_steps) == 0:
-            #     optim.updata()
-            #     optim.zero_grad()
-            optim.zero_grad()
+            # loss regularization
+            loss = loss/config.accumulation_steps
             loss.backward()
-            optim.updata()
+            if ((step+1) % config.accumulation_steps) == 0:
+                optim.updata()
+                optim.zero_grad()
+            # optim.zero_grad()
+            # loss.backward()
+            # optim.updata()
             # optim.step()
             # ###########################
             # if step == 2:
             #     break
             # ###########################
 
-            if step % 500 == 0:
-                test(e, config, model, loss_func)
+            # if step % 500 == 0:
+            #     test(e, config, model, loss_func)
 
-            # if step % 2000 == 0:
-            #     filename = config.filename_model + 'model_' + str(e) + '_' + str(step) + '.pkl'
-            #     save_model(model, filename)
-            #     test(e, config, model)
+            if step != 0 and step % 5000 == 0:
+                filename = config.filename_model + 'model_' + str(step) + '.pkl'
+                save_model(model, filename)
+                test(e, config, model, loss_func)
 
         # train loss
         loss = all_loss / num
         print('epoch:', e, '|train_loss: %.4f' % loss)
-        train_loss.append(loss)
+        # train_loss.append(loss)
 
-        if args.save_model:
-            filename = config.filename_model + 'model_' + str(e) + '.pkl'
-            save_model(model, filename)
+        # if args.save_model:
+        #     filename = config.filename_model + 'model_' + str(e) + '.pkl'
+        #     save_model(model, filename)
 
-        # valid
-        loss_v = valid(e, config, model, loss_func)
-        valid_loss.append(loss_v)
+        # # valid
+        # loss_v = valid(e, config, model, loss_func)
+        # valid_loss.append(loss_v)
 
         # test
-        rouge, loss_t = test(e, config, model, loss_func)
-        test_loss.append(loss_t)
-        test_rouge.append(rouge)
+        sorce, _ = test(e, config, model, loss_func)
+        if sorce > max_sorce:
+            filename = config.filename_model + 'model' + '.pkl'
+            save_model(model, filename)
+        # test_loss.append(loss_t)
+        # test_rouge.append(rouge)
 
 
 def main():

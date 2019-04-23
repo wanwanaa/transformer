@@ -16,7 +16,7 @@ class LabelSmoothing(nn.Module):
         # out (batch, len, vocab_size)
         # y (batch, len)
         y = y.view(-1)
-        word = y.ne(self.pad).sum().item()
+        # word = y.ne(self.pad).sum().item()
         out = out.view(-1, self.tgt_vocab_size)
 
         true_dist = torch.zeros_like(out)
@@ -35,8 +35,8 @@ class LabelSmoothing(nn.Module):
         loss = self.criterion(out, true_dist)
         # loss = F.binary_cross_entropy_with_logits(out, true_dist, size_average=False)
 
-        return loss/word
-
+        # return loss/word
+        return loss
 
 # implement label smoothing one-hot
 class LabelSmoothing_Onehot(nn.Module):
